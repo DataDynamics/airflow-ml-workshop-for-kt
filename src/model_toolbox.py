@@ -1,31 +1,3 @@
-"""
-This script runs time-series forecasting via ARIMA. It contains all the methods necessary
-to simulate a time series forecasting task. Below simulation uses daily minimum temp. and tries
-to predict min. temp. for given date.
-
-Steps to follow:
-
-    1. Pre-processing raw data. `preprocess_raw_data()`
-    2. Splitting data into two as train and test.  `split_data(2)`
-    3. Fit model to the train dataset and save model object.  `fit_and_save_model()`
-    4. Make prediction for test datasets.  `predict_test_wt_arima()`
-    5. Measure the accuracy of predictions for test period. Afterwards save it
-    to the local.  `measure_accuracy()`
-    6. Use forecast function to have a point estimate for a given date.
-    `forecast_wt_arima_for_date(input_date)`
-
-What is ARIMA?
-ARIMA is the most common method used in time series forecasting. It is an acronym for
-AutoregRessive Integrated Moving Average. ARIMA is a model that can be fitted to time series data
-in order to better understand or predict future points in the series.
-
-Details of the dataset:
-This dataset describes the minimum daily temperatures over 10 years (1981-1990)
-in the city Melbourne, Australia.
-
-The units are in degrees Celsius and there are 3650 observations.
-The source of the data is credited as the Australian Bureau of Meteorology
-"""
 import logging
 import math
 import os
@@ -48,21 +20,10 @@ def run_training():
     predict_test_wt_arima()
     measure_accuracy()
 
-
 def run_prediction():
-    #TODO
     forecast_wt_arima_for_date(str(date.today()))
 
-
 def read_data(df_phase):
-    """
-    This function reads necessary data from local for the steps of the simulation.
-    :param df_phase: Read data for which step of the simulation.
-        Options: ['raw_data', 'processed', 'train_model', 'test_model', 'train_predicted',
-        'test_predicted']
-    :return: DataFrame read from local.
-    """
-
     if df_phase == 'raw_data':
         repo_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         data_path = os.path.join(repo_path, 'data', 'raw_data', 'daily_minimum_temp.csv')
@@ -92,12 +53,6 @@ def read_data(df_phase):
 
 
 def preprocess_raw_data():
-    """
-    Reads raw data from local and makes pre-processing necessary to use dataset with ARIMA.
-    Function assumes that the date column is named as 'Date'. It saves prep-processed dataset
-    the local.
-    """
-
     raw_df = read_data('raw_data')
 
     raw_df['Date'] = list(map(lambda x: pd.to_datetime(x), raw_df['Date']))
@@ -120,11 +75,6 @@ def preprocess_raw_data():
 
 
 def split_data(n_weeks_to_test=2):
-    """
-    Reads preprocessed data from local and splits it to test/train and saves it to
-    local. test_df.csv and train_df.csv can be found under `data/interim` path.
-    :param n_weeks_to_test: Number of weeks for the test data. Default is 2.
-    """
     preprocessed_data = read_data('processed')
     n_days_for_test = n_weeks_to_test * 7
 
@@ -144,10 +94,6 @@ def split_data(n_weeks_to_test=2):
 
 
 def fit_and_save_model():
-    """
-    Runs Prophet for the train dataframe. It reads data from local and saves the model
-    object to the local. Model can be found under `data/model/arima.pkl`
-    """
     train_df = read_data('train_model')
     train_df['Date'] = list(map(lambda x: pd.to_datetime(x), train_df['Date']))
     train_df = train_df.set_index('Date')
@@ -169,12 +115,7 @@ def fit_and_save_model():
     with open(model_path, "wb") as f:
         pickle.dump(model, f)
 
-
 def predict_test_wt_arima():
-    """
-    Reads test dataframe and model object from local and makes prediction.
-    Data with predicted values for test dataframe will be saved to local.
-    """
     test_df = read_data('test_model')
 
     repo_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -200,13 +141,6 @@ def predict_test_wt_arima():
 
 
 def calculate_mape(y, yhat):
-    """
-    Calculates Mean Average Percentage Error.
-    :param y: Actual values as series
-    :param yhat: Predicted values as series
-    :return: MAPE as percentage
-    """
-
     y = y.replace(0, np.nan)
 
     error_daily = y - yhat
@@ -219,25 +153,13 @@ def calculate_mape(y, yhat):
 
 
 def calculate_rmse(y, yhat):
-    """
-    Calculates Root Mean Square Error
-    :param y: Actual values as series
-    :param yhat: Predicted values as series
-    :return: RMSE value
-    """
     error_sqr = (y - yhat)**2
     error_sqr_rooted = list(map(lambda x: math.sqrt(x), error_sqr))
     rmse = sum(error_sqr_rooted) / len(error_sqr_rooted)
 
     return rmse
 
-
 def measure_accuracy():
-    """
-    Uses the above defined accuracy metrics and calculates accuracy for both test series in
-    terms of MAPE and RMSE. Saves those results to local as a csv file.
-    :return: A dictionary with accuracy metrics for test dataset.
-    """
     test_df = read_data('test_model')
 
     predicted_test = read_data('test_predicted')
@@ -263,13 +185,6 @@ def measure_accuracy():
 
 
 def forecast_wt_arima_for_date(input_date):
-    """
-    :param input_date: A date as a string in ISO format (yyyy-mm-dd).
-    :return: Dictionary with the forecasted values.
-            `yhat`: Forecasted value for given date.
-            `yhat_upper`: Forecasted upper value for given date & confidence intervals.
-            `yhat_lower`: Forecasted lower value for given date & confidence intervals.
-    """
     logging.info("Computing forecast for %s", input_date)
     repo_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     model_path = os.path.join(repo_path, 'data', 'model', 'arima.pkl')
@@ -298,12 +213,6 @@ def forecast_wt_arima_for_date(input_date):
 
 
 def plot_forecast(sqlite_path='/tmp/sqlite_default.db'):
-    """
-    Reads DB created by Airflow while making forecasts and generate graph. Afterwards,
-    it saves the graph to the local.
-    :param sqlite_path: This is the string where Airflow stores the SQLite db file to keep record
-    of forecasts. eg: /tmp/sqlite_default.db
-    """
     conn = sqlite3.connect(sqlite_path)
     df = pd.read_sql_query("SELECT * FROM prediction;", conn)
 
